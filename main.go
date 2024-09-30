@@ -9,8 +9,9 @@ import (
 	"flag"
 	"log"
 
-	"github.com/gomorpheus/terraform-provider-morpheus/morpheus"
 	"github.com/gomorpheus/terraform-provider-morpheus/morpheusv3"
+
+	"github.com/gomorpheus/terraform-provider-morpheus/morpheus"
 	"github.com/hashicorp/terraform-plugin-framework/providerserver"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov5"
 	"github.com/hashicorp/terraform-plugin-go/tfprotov5/tf5server"
@@ -29,8 +30,8 @@ func main() {
 	flag.BoolVar(&debugMode, "debug", false, "set to true to run the provider with support for debuggers like delve")
 	flag.Parse()
 	providers := []func() tfprotov5.ProviderServer{
-		providerserver.NewProtocol5(morpheusv3.New()), // Example terraform-plugin-framework provider
-		morpheus.Provider().GRPCProvider,              // Example terraform-plugin-sdk provider
+		providerserver.NewProtocol5(morpheusv3.New("dev")()), // Example terraform-plugin-framework provider
+		morpheus.Provider().GRPCProvider,                     // Example terraform-plugin-sdk provider
 	}
 
 	muxServer, err := tf5muxserver.NewMuxServer(context.Background(), providers...)

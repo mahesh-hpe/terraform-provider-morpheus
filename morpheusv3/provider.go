@@ -8,12 +8,20 @@ import (
 	"github.com/hashicorp/terraform-plugin-framework/provider"
 	"github.com/hashicorp/terraform-plugin-framework/provider/schema"
 	"github.com/hashicorp/terraform-plugin-framework/resource"
+	"github.com/hashicorp/terraform-plugin-framework/types"
 )
 
 var _ provider.Provider = &MorpheusProvider{}
 
 type MorpheusProvider struct {
 	version string
+}
+type MorpheusProviderModel struct {
+	Url             types.String `tfsdk:"url"`
+	AccessToken     types.String `tfsdk:"access_token"`
+	TenantSubdomain types.String `tfsdk:"tenant_subdomain"`
+	Username        types.String `tfsdk:"username"`
+	Password        types.String `tfsdk:"password"`
 }
 
 func New(version string) func() provider.Provider {
@@ -63,22 +71,27 @@ func (p *MorpheusProvider) Schema(ctx context.Context, req provider.SchemaReques
 }
 
 func (p *MorpheusProvider) Configure(ctx context.Context, req provider.ConfigureRequest, resp *provider.ConfigureResponse) {
-	var data morpheus.Config
+	var providerData MorpheusProviderModel
 
-	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
+	resp.Diagnostics.Append(req.Config.Get(ctx, &providerData)...)
+	morphConfig := morpheus.Config{
+		Url:             providerData.Url.ValueString(),
+		AccessToken:     providerData.AccessToken.ValueString(),
+		TenantSubdomain: providerData.TenantSubdomain.String(),
+		Username:        providerData.Username.ValueString(),
+		Password:        providerData.Password.ValueString(),
+	}
 
-	resp.DataSourceData, _ = data.Client()
+	morphClient, _ := morphConfig.Client()
+	resp.DataSourceData = morphClient
+	resp.ResourceData = morphClient
 	if resp.Diagnostics.HasError() {
 		return
 	}
 }
 
 func (p *MorpheusProvider) Resources(ctx context.Context) []func() resource.Resource {
-	return []func() resource.Resource{
-		func() resource.Resource {
-			return nil
-		},
-	}
+	return []func() resource.Resource{}
 }
 
 func (p *MorpheusProvider) DataSources(ctx context.Context) []func() datasource.DataSource {
