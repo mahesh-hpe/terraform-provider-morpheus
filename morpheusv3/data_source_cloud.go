@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"github.com/gomorpheus/morpheus-go-sdk"
+	"github.com/hashicorp/terraform-plugin-framework/attr"
 	"github.com/hashicorp/terraform-plugin-framework/datasource"
 	"github.com/hashicorp/terraform-plugin-framework/types"
 
@@ -121,12 +122,9 @@ func (d *CloudDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 
 	// Read Terraform configuration data into the model
 	resp.Diagnostics.Append(req.Config.Get(ctx, &data)...)
-
 	if resp.Diagnostics.HasError() {
 		return
 	}
-
-	// Warning or errors can be collected in a slice type
 
 	name := data.Name.ValueString()
 	id := data.ID.ValueInt32()
@@ -140,7 +138,6 @@ func (d *CloudDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		morphResponse, err = d.client.GetCloud(int64(id), &morpheus.Request{})
 	} else {
 		resp.Diagnostics.AddError("Missing data", "Cloud cannot be read without name or id")
-
 		return
 	}
 	if err != nil {
@@ -166,35 +163,28 @@ func (d *CloudDataSource) Read(ctx context.Context, req datasource.ReadRequest, 
 		data.GuidanceMode = types.StringValue(cloud.GuidanceMode)
 		data.TimeZone = types.StringValue(cloud.TimeZone)
 		data.CostingMode = types.StringValue(cloud.CostingMode)
-		// data.Labels,_ = types.SetValue(types.StringType,cloud.Labels)
-		// data.InventoryLevel = types.StringValue(cloud.InventoryLevel)
-		// Name           types.String `tfsdk:"name"`
-		// Code           types.String `tfsdk:"code"`
-		// Location       types.String `tfsdk:"location"`
-		// ExternalID     types.String `tfsdk:"external_id"`
-		// InventoryLevel types.String `tfsdk:"inventory_level"`
-		// GuidanceMode   types.String `tfsdk:"guidance_mode"`
-		// TimeZone       types.String `tfsdk:"time_zone"`
-		// CostingMode    types.String `tfsdk:"costing_mode"`
-		// Labels         types.Set    `tfsdk:"labels"`
-		// GroupIDs
-		// d.SetId(int64ToString(cloud.ID))
-		// d.Set("name", cloud.Name)
-		// d.Set("code", cloud.Code)
-		// d.Set("location", cloud.Location)
-		// d.Set("external_id", cloud.ExternalID)
-		// d.Set("inventory_level", cloud.InventoryLevel)
-		// d.Set("guidance_mode", cloud.GuidanceMode)
-		// d.Set("time_zone", cloud.TimeZone)
-		// d.Set("costing_mode", cloud.CostingMode)
-		// d.Set("labels", cloud.Labels)
-		// var groupIds []int
-		// for _, group := range cloud.Groups {
-		// 	groupIds = append(groupIds, int(group.ID))
-		// }
-		// d.Set("group_ids", groupIds)
+
+		var groupIds []attr.Value
+		for _, group := range cloud.Groups {
+			groupIds = append(groupIds, types.Int64Value(group.ID))
+		}
+		groupTypeInt64, diagErr := types.SetValue(types.Int64Type, groupIds)
+		data.GroupIDs = groupTypeInt64
+		resp.Diagnostics.Append(diagErr...)
+		var labels []attr.Value
+		for _, label := range cloud.Labels {
+			labels = append(labels, types.StringValue(label))
+		}
+		labelTypeString, diagErr := types.SetValue(types.StringType, labels)
+		data.Labels = labelTypeString
+		resp.Diagnostics.Append(diagErr...)
+
+		if resp.Diagnostics.HasError() {
+			return
+		}
 	} else {
-		return //diag.Errorf("Cloud not found in response data.") // should not happen
+		resp.Diagnostics.AddError("Not Found", "Cloud not found in response data")
+		return
 	}
 
 	resp.Diagnostics.Append(resp.State.Set(ctx, &data)...)
